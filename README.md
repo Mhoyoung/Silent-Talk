@@ -9,11 +9,26 @@
 
 ## 핵심 기능
 
-- 실시간 웹캠 입술 ROI 추출 (MediaPipe Face Mesh)
-- Visual VAD(V-VAD)로 발화 구간 자동 분할
-- 3D-CNN + Bi-LSTM + CTC 기반 한국어 립리딩
+- 실시간 웹캠 입술 ROI 추출 (MediaPipe Face Mesh, 96×96 RGB)
+- Visual VAD(V-VAD)로 발화 구간 자동 분할 (mouth_ratio = d_raw / W)
+- 3D-CNN + Bi-GRU + CTC 기반 한국어 립리딩 (자모 41클래스, python-jamo 음절 복원)
 - FastAPI + WebSocket을 통한 저지연 스트리밍 추론
 - React + Tailwind 기반 실시간 자막 UI
+
+## 절대 변경 금지 기준값
+
+| 항목 | 값 |
+| --- | --- |
+| FPS | 25 (`cap.set` 금지, 타임스탬프 리샘플) |
+| SEQ_LEN | 75 (= 3초 × 25fps) |
+| ROI_SIZE | 96 × 96 |
+| ROI_MARGIN | 0.20 |
+| PADDING | last-frame (zero-padding 금지) |
+| NORMALIZE | ImageNet mean/std |
+| 자모 클래스 | 19(자) + 21(모) + 1(blank) = 41 |
+| Tensor 형상 | 전처리 (B,T,H,W,C) → 모델 입력 (B,C,T,H,W) |
+
+상수는 `backend/config.py` 가 단일 진실 공급원. 프론트엔드는 `frontend/src/constants.js` 가 미러.
 
 ---
 

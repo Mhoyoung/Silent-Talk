@@ -53,7 +53,7 @@ def main() -> None:
     cfg_data = load_yaml(args.data_config)
     cfg_model = load_yaml(args.model_config)
 
-    tokenizer = CharTokenizer(cfg_data["dataset"]["vocab_path"])
+    tokenizer = CharTokenizer()
     train_dl = build_dataloader(cfg_data, tokenizer, "train")
     val_dl = build_dataloader(cfg_data, tokenizer, "val")
 

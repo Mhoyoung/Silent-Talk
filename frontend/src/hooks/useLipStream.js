@@ -1,45 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-
-// MediaPipe Face Mesh 입술 외곽 인덱스 (백엔드 data/lip_extractor.py와 일치)
-const LIP_INDICES = [
-  61, 146, 91, 181, 84, 17, 314, 405, 321, 375,
-  291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95,
-  78, 191, 80, 81, 82, 13, 312, 311, 310, 415,
-];
-const UPPER = 13, LOWER = 14, LEFT = 78, RIGHT = 308;
-const ROI_SIZE = 112;
-const TARGET_FPS = 25;
-const PADDING = 0.25;
-
-function dist(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function cropLipROI(video, landmarks, ctx) {
-  const w = video.videoWidth, h = video.videoHeight;
-  let xs = [], ys = [];
-  for (const i of LIP_INDICES) {
-    xs.push(landmarks[i].x * w);
-    ys.push(landmarks[i].y * h);
-  }
-  const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const yMin = Math.min(...ys), yMax = Math.max(...ys);
-  const bw = xMax - xMin, bh = yMax - yMin;
-  const side = Math.max(bw * (1 + 2 * PADDING), bh * (1 + 2 * PADDING));
-  const cx = (xMin + xMax) / 2, cy = (yMin + yMax) / 2;
-  const x0 = Math.max(0, Math.min(w - side, cx - side / 2));
-  const y0 = Math.max(0, Math.min(h - side, cy - side / 2));
-
-  ctx.drawImage(video, x0, y0, side, side, 0, 0, ROI_SIZE, ROI_SIZE);
-  const img = ctx.getImageData(0, 0, ROI_SIZE, ROI_SIZE);
-  // grayscale 변환 — 백엔드와 동일 (luminance)
-  for (let i = 0; i < img.data.length; i += 4) {
-    const g = 0.299 * img.data[i] + 0.587 * img.data[i + 1] + 0.114 * img.data[i + 2];
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = g;
-  }
-  ctx.putImageData(img, 0, 0);
-}
+import { FPS, ROI_SIZE } from '../constants.js';
+import { cropLipROI, mouthRatio } from '../webcamUtils.js';
 
 export function useLipStream(videoRef, { onPartial, onStatus }) {
   const wsRef = useRef(null);
@@ -97,7 +59,7 @@ export function useLipStream(videoRef, { onPartial, onStatus }) {
       ws.onerror = () => onStatus?.('error');
       ws.onclose = () => onStatus?.('idle');
 
-      const interval = 1000 / TARGET_FPS;
+      const interval = 1000 / FPS;
       const tick = () => {
         if (!streamRef.current) return;
         const now = performance.now();
@@ -107,7 +69,7 @@ export function useLipStream(videoRef, { onPartial, onStatus }) {
           if (result.faceLandmarks?.[0]) {
             const lm = result.faceLandmarks[0];
             cropLipROI(video, lm, ctx);
-            const mar = dist(lm[UPPER], lm[LOWER]) / (dist(lm[LEFT], lm[RIGHT]) + 1e-6);
+            const mar = mouthRatio(lm);
             canvas.toBlob((blob) => {
               if (!blob || ws.readyState !== WebSocket.OPEN) return;
               const reader = new FileReader();

@@ -1,10 +1,10 @@
-"""LipNet 스타일 모델: 3D-CNN + Bi-LSTM + CTC head.
+"""LipNet 베이스라인: 3D-CNN + Bi-GRU + CTC head.
 
-입력  : (B, C, T, H, W)  - 보통 C=1 (grayscale), H=W=112
-출력  : (T', B, V)        - CTC loss/디코더가 요구하는 (time, batch, vocab) 포맷
+입력  : (B, C, T, H, W) = (B, 3, 75, 96, 96)  (RGB, ImageNet 정규화)
+출력  : (T', B, V)                              CTC (time, batch, vocab)
 
 baseline CER 40% 초과 시 backbone을 3D-ResNet으로 교체할 수 있도록
-spatiotemporal feature 추출부와 sequence 모델링부를 분리한다.
+spatiotemporal feature 추출부와 sequence 모델링부를 분리.
 """
 
 from __future__ import annotations
@@ -14,15 +14,17 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
+from backend.config import CHANNELS
+
 
 @dataclass
 class LipNetConfig:
-    in_channels: int = 1
+    in_channels: int = CHANNELS            # 3 (RGB) — CLAUDE 기준값
     conv_channels: tuple[int, int, int] = (32, 64, 96)
     rnn_hidden: int = 256
     rnn_layers: int = 2
     dropout: float = 0.5
-    vocab_size: int = 64           # CTC blank 포함
+    vocab_size: int = 41                   # 자음19 + 모음21 + blank
 
 
 class _STCNN(nn.Module):

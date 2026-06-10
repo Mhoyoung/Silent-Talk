@@ -11,16 +11,16 @@ from threading import Lock
 import numpy as np
 import torch
 
-from backend.config import settings
-from backend.models import GreedyCTCDecoder, LipNet, LipNetConfig
-from backend.preprocessing.dataset import CharTokenizer
+from backend.config import NORMALIZE_MEAN, NORMALIZE_STD, settings
+from backend.models import VOCAB_SIZE, GreedyCTCDecoder, LipNet, LipNetConfig
+from backend.preprocessing.dataset import JamoTokenizer
 
 
 class InferenceService:
     def __init__(self) -> None:
         self._lock = Lock()
-        self.tokenizer = CharTokenizer(settings.vocab_path)
-        self.decoder = GreedyCTCDecoder(blank_id=CharTokenizer.BLANK_ID)
+        self.tokenizer = JamoTokenizer()
+        self.decoder = GreedyCTCDecoder(blank_id=JamoTokenizer.BLANK_ID)
         self.device = torch.device(settings.device)
         self._onnx_session = None
         self._torch_model: LipNet | None = None
@@ -35,10 +35,11 @@ class InferenceService:
             return
 
         if not Path(settings.checkpoint).exists():
-            raise FileNotFoundError(
-                f"Checkpoint not found: {settings.checkpoint}. "
-                "Run scripts/train.py first or set ST_ONNX_PATH."
-            )
+            # 가중치가 없으면 미학습 폴백 — 파이프라인 구조는 동작, 출력은 무의미
+            self._torch_model = LipNet(LipNetConfig(vocab_size=VOCAB_SIZE)).to(self.device)
+            self._torch_model.eval()
+            return
+
         ckpt = torch.load(settings.checkpoint, map_location=self.device)
         mc = ckpt["config"]["model"]
         cfg = LipNetConfig(
@@ -55,11 +56,18 @@ class InferenceService:
         self._torch_model = model
 
     def infer(self, clip: np.ndarray) -> str:
-        """clip: (T, H, W) uint8 grayscale → 한국어 텍스트."""
+        """clip: (T, H, W, 3) RGB uint8 → 한국어 텍스트.
+
+        grayscale (T,H,W) 입력은 3채널로 broadcast 후 처리한다 (호환성).
+        """
         if clip.ndim == 3:
-            clip = clip[..., None]
+            clip = np.repeat(clip[..., None], 3, axis=-1)
+        # ImageNet normalize
         clip = clip.astype(np.float32) / 255.0
-        # (C, T, H, W)
+        mean = np.array(NORMALIZE_MEAN, dtype=np.float32)
+        std = np.array(NORMALIZE_STD, dtype=np.float32)
+        clip = (clip - mean) / std
+        # (T,H,W,C) → (B,C,T,H,W)
         tensor = torch.from_numpy(clip).permute(3, 0, 1, 2).unsqueeze(0).contiguous()
 
         with self._lock:

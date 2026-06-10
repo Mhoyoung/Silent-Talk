@@ -27,8 +27,9 @@ from backend.services.stream_buffer import StreamBuffer
 
 
 def _decode_roi(b64_png: str) -> np.ndarray:
+    """클라이언트가 보낸 base64 PNG → (H, W, 3) RGB uint8."""
     raw = base64.b64decode(b64_png)
-    img = Image.open(io.BytesIO(raw)).convert("L")  # grayscale
+    img = Image.open(io.BytesIO(raw)).convert("RGB")
     return np.array(img, dtype=np.uint8)
 
 

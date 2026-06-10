@@ -1,11 +1,13 @@
 """원본 비디오 → 입술 ROI npy + manifest(JSONL) 생성.
 
+ROI 크기/색상/패딩은 backend/config.py 의 ROI_SIZE/CHANNELS 를 따른다.
+
 사용:
     python scripts/extract_lip_rois.py \
-        --videos data/raw \
-        --labels data/raw/labels.csv \
-        --output data/processed \
-        --manifest data/processed/manifest_train.jsonl
+        --videos data_cache/videos \
+        --labels data_cache/labels.csv \
+        --output data_cache/processed \
+        --manifest data_cache/manifest_train.jsonl
 """
 
 from __future__ import annotations
@@ -27,14 +29,12 @@ def main() -> None:
     parser.add_argument("--labels", type=Path, required=True, help="CSV: video_path,text")
     parser.add_argument("--output", type=Path, required=True, help="ROI npy 저장 디렉터리")
     parser.add_argument("--manifest", type=Path, required=True, help="manifest JSONL 출력 경로")
-    parser.add_argument("--out-size", type=int, default=112)
-    parser.add_argument("--grayscale", action="store_true", default=True)
     args = parser.parse_args()
 
     args.output.mkdir(parents=True, exist_ok=True)
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
 
-    cfg = ExtractorConfig(out_size=args.out_size, grayscale=args.grayscale)
+    cfg = ExtractorConfig()    # backend.config 의 ROI_SIZE/ROI_MARGIN 사용
     written = 0
     with open(args.labels, encoding="utf-8") as f, \
          open(args.manifest, "w", encoding="utf-8") as out, \

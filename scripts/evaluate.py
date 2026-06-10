@@ -45,7 +45,7 @@ def main() -> None:
     ckpt = torch.load(args.checkpoint, map_location=args.device)
     cfg_model = ckpt["config"]
 
-    tokenizer = CharTokenizer(cfg_data["dataset"]["vocab_path"])
+    tokenizer = CharTokenizer()
     test_ds = LipReadingDataset(
         manifest_path=cfg_data["dataset"]["manifest_test"],
         tokenizer=tokenizer,

@@ -1,36 +1,31 @@
-"""Lip ROI extraction using MediaPipe Face Mesh.
+"""MediaPipe Face Mesh 기반 입술 ROI 추출 (96×96 RGB).
 
-MediaPipe Face Mesh의 468개 랜드마크 중 입술 외곽 인덱스를 사용해
-영상의 매 프레임마다 입술 영역을 잘라 고정 크기로 리사이즈한다.
+backend/config.py 의 ROI_SIZE, ROI_MARGIN, ROI_CROP_IDX 를 단일 진실 공급원으로
+참조한다. 임의 하드코딩 금지.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import cv2
 import mediapipe as mp
 import numpy as np
 
-# MediaPipe Face Mesh 기준 입술 외곽선 랜드마크 인덱스
-LIP_LANDMARKS: tuple[int, ...] = (
-    61, 146, 91, 181, 84, 17, 314, 405, 321, 375,
-    291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95,
-    78, 191, 80, 81, 82, 13, 312, 311, 310, 415,
-)
+from backend.config import ROI_CROP_IDX, ROI_MARGIN, ROI_SIZE
 
 
 @dataclass
 class ExtractorConfig:
-    out_size: int = 112             # 모델 입력 크기 (정사각)
-    padding_ratio: float = 0.25     # ROI bbox 여백 비율
+    out_size: tuple[int, int] = ROI_SIZE      # (H, W)
+    padding_ratio: float = ROI_MARGIN
     min_detection_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
-    grayscale: bool = True          # LipNet 계열은 grayscale 입력 사용
+    landmark_indices: list[int] = field(default_factory=lambda: list(ROI_CROP_IDX))
 
 
 class LipROIExtractor:
-    """프레임 → 입술 ROI 이미지 (H, W) 또는 (H, W, 3)."""
+    """프레임 → 입술 ROI RGB 이미지 (H, W, 3) uint8."""
 
     def __init__(self, config: ExtractorConfig | None = None) -> None:
         self.cfg = config or ExtractorConfig()
@@ -52,7 +47,7 @@ class LipROIExtractor:
         self.close()
 
     def extract(self, frame_bgr: np.ndarray) -> np.ndarray | None:
-        """프레임에서 입술 ROI를 잘라 반환. 얼굴 미검출 시 None."""
+        """프레임 → ROI RGB (H, W, 3). 얼굴 미검출 시 None."""
         h, w = frame_bgr.shape[:2]
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         result = self._mesh.process(rgb)
@@ -61,7 +56,7 @@ class LipROIExtractor:
 
         landmarks = result.multi_face_landmarks[0].landmark
         pts = np.array(
-            [(landmarks[i].x * w, landmarks[i].y * h) for i in LIP_LANDMARKS],
+            [(landmarks[i].x * w, landmarks[i].y * h) for i in self.cfg.landmark_indices],
             dtype=np.float32,
         )
         x_min, y_min = pts.min(axis=0)
@@ -78,22 +73,21 @@ class LipROIExtractor:
         x1 = int(np.clip(cx + side / 2, 0, w))
         y1 = int(np.clip(cy + side / 2, 0, h))
 
-        roi = frame_bgr[y0:y1, x0:x1]
+        roi = rgb[y0:y1, x0:x1]
         if roi.size == 0:
             return None
 
-        roi = cv2.resize(roi, (self.cfg.out_size, self.cfg.out_size), interpolation=cv2.INTER_AREA)
-        if self.cfg.grayscale:
-            roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        return roi
+        roi = cv2.resize(roi, self.cfg.out_size, interpolation=cv2.INTER_AREA)
+        return roi  # (H, W, 3) RGB uint8
 
     def extract_video(self, video_path: str) -> np.ndarray:
-        """비디오 → (T, H, W) 또는 (T, H, W, 3). 검출 실패 프레임은 0으로 채움."""
+        """비디오 → (T, H, W, 3) RGB. 검출 실패 프레임은 last-frame 복제."""
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise FileNotFoundError(f"Cannot open video: {video_path}")
 
         frames: list[np.ndarray] = []
+        h, w = self.cfg.out_size
         try:
             while True:
                 ok, frame = cap.read()
@@ -101,12 +95,9 @@ class LipROIExtractor:
                     break
                 roi = self.extract(frame)
                 if roi is None:
-                    shape = (self.cfg.out_size, self.cfg.out_size)
-                    if not self.cfg.grayscale:
-                        shape = (*shape, 3)
-                    roi = np.zeros(shape, dtype=np.uint8)
+                    roi = frames[-1].copy() if frames else np.zeros((h, w, 3), dtype=np.uint8)
                 frames.append(roi)
         finally:
             cap.release()
 
-        return np.stack(frames, axis=0)
+        return np.stack(frames, axis=0) if frames else np.zeros((0, h, w, 3), dtype=np.uint8)

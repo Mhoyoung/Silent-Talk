@@ -1,10 +1,10 @@
-"""Visual Voice Activity Detection (V-VAD).
+"""Visual VAD + 시퀀스 세그먼터.
 
-입술 ROI 시퀀스에서 발화 구간을 자동으로 분리한다.
-"입이 얼마나 벌어졌는가"(MAR; Mouth Aspect Ratio) 변화량을
-이동평균으로 평활화해 임계값 기반으로 발화/무음을 결정한다.
-
-오디오 기반 VAD가 불가능한 무음 환경(립리딩)을 위한 핵심 모듈.
+발화 구간 분리 규칙:
+    d_raw       = 윗입술 평균좌표 ↔ 아랫입술 평균좌표 유클리드 거리
+    mouth_ratio = d_raw / W    (W: 좌우 광대 랜드마크 거리)
+    delta(t)    = |mouth_ratio[t] − 이동평균|
+    active 구간 = delta(t) > threshold
 """
 
 from __future__ import annotations
@@ -13,34 +13,28 @@ from dataclasses import dataclass
 
 import numpy as np
 
-# Face Mesh 기준 윗입술(중앙), 아랫입술(중앙), 좌/우 입꼬리 인덱스
-UPPER_LIP_CENTER = 13
-LOWER_LIP_CENTER = 14
-LEFT_MOUTH_CORNER = 78
-RIGHT_MOUTH_CORNER = 308
+from backend.config import SEQ_LEN, VVAD_IDX_BOT, VVAD_IDX_TOP
+
+
+def mouth_ratio(landmarks_xy: np.ndarray, lateral_lr_xy: np.ndarray) -> float:
+    """단일 프레임의 mouth_ratio = d_raw / W."""
+    upper = landmarks_xy[VVAD_IDX_TOP].mean(axis=0)
+    lower = landmarks_xy[VVAD_IDX_BOT].mean(axis=0)
+    d_raw = float(np.linalg.norm(upper - lower))
+    width = float(np.linalg.norm(lateral_lr_xy[0] - lateral_lr_xy[1])) + 1e-6
+    return d_raw / width
 
 
 @dataclass
 class VVADConfig:
-    window: int = 5                # 이동평균 윈도우 (frames)
-    mar_threshold: float = 0.04    # 발화로 간주할 MAR 변화량 임계값
-    min_speech_frames: int = 6     # 최소 발화 길이 (frames)
-    min_silence_frames: int = 4    # 발화 사이 최소 무음 길이
-
-
-def mouth_aspect_ratio(landmarks_xy: np.ndarray) -> float:
-    """MAR = (입 세로 거리) / (입 가로 거리). 단일 프레임 기준."""
-    upper = landmarks_xy[UPPER_LIP_CENTER]
-    lower = landmarks_xy[LOWER_LIP_CENTER]
-    left = landmarks_xy[LEFT_MOUTH_CORNER]
-    right = landmarks_xy[RIGHT_MOUTH_CORNER]
-    vertical = float(np.linalg.norm(upper - lower))
-    horizontal = float(np.linalg.norm(left - right)) + 1e-6
-    return vertical / horizontal
+    window: int = 5
+    mar_threshold: float = 0.04
+    min_speech_frames: int = 6
+    min_silence_frames: int = 4
 
 
 class VisualVAD:
-    """프레임별 MAR 시퀀스를 입력으로 받아 발화 구간 [start, end)을 반환."""
+    """mouth_ratio 시계열 → 발화 구간 [start, end) 리스트."""
 
     def __init__(self, config: VVADConfig | None = None) -> None:
         self.cfg = config or VVADConfig()
@@ -52,12 +46,11 @@ class VisualVAD:
         kernel = np.ones(w, dtype=np.float32) / w
         return np.convolve(values, kernel, mode="same")
 
-    def segments(self, mar_sequence: np.ndarray) -> list[tuple[int, int]]:
-        """MAR 시계열 → [(start, end), ...] 발화 구간 인덱스."""
-        if mar_sequence.size == 0:
+    def segments(self, mr_sequence: np.ndarray) -> list[tuple[int, int]]:
+        if mr_sequence.size == 0:
             return []
 
-        smoothed = self._smooth(mar_sequence.astype(np.float32))
+        smoothed = self._smooth(mr_sequence.astype(np.float32))
         delta = np.abs(np.diff(smoothed, prepend=smoothed[0]))
         active = delta > self.cfg.mar_threshold
 
@@ -84,3 +77,19 @@ class VisualVAD:
                 segments.append((i, end))
             i = j
         return segments
+
+
+def split_into_seq_chunks(clip: np.ndarray, seq_len: int = SEQ_LEN) -> list[np.ndarray]:
+    """긴 클립을 seq_len 단위로 분할. 부족한 마지막 청크는 last-frame 패딩 (zero 금지)."""
+    if clip.shape[0] == 0:
+        return []
+
+    chunks: list[np.ndarray] = []
+    for start in range(0, clip.shape[0], seq_len):
+        chunk = clip[start : start + seq_len]
+        if chunk.shape[0] < seq_len:
+            pad_len = seq_len - chunk.shape[0]
+            last = chunk[-1:].repeat(pad_len, axis=0)
+            chunk = np.concatenate([chunk, last], axis=0)
+        chunks.append(chunk)
+    return chunks

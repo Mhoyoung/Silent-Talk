@@ -17,13 +17,12 @@ from backend.preprocessing.dataset import CharTokenizer
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--vocab", type=Path, default=Path("configs/vocab_ko_mvp.json"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frames", type=int, default=75)
-    parser.add_argument("--size", type=int, default=112)
+    parser.add_argument("--size", type=int, default=96)
     args = parser.parse_args()
 
-    tokenizer = CharTokenizer(args.vocab)
+    tokenizer = CharTokenizer()
     ckpt = torch.load(args.checkpoint, map_location="cpu")
     mc = ckpt["config"]["model"]
     cfg = LipNetConfig(
