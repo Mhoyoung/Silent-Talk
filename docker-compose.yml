@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    environment:
+      ST_DEVICE: cpu
+      ST_CHECKPOINT: /app/checkpoints/lipnet_mvp/best.pt
+      ST_VOCAB_PATH: /app/configs/vocab_ko_mvp.json
+      ST_CORS_ORIGINS: '["http://localhost"]'
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
