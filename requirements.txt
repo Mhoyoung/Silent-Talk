@@ -1,0 +1,35 @@
+# --- Deep learning ---
+torch>=2.2.0
+torchvision>=0.17.0
+torchaudio>=2.2.0
+
+# --- CV / lip tracking ---
+opencv-python>=4.9.0
+mediapipe>=0.10.9
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# --- Backend ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+python-multipart>=0.0.9
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# --- Inference / deployment ---
+onnx>=1.15.0
+onnxruntime>=1.17.0
+
+# --- Training utilities ---
+pyyaml>=6.0
+tqdm>=4.66.0
+einops>=0.7.0
+torchmetrics>=1.3.0
+
+# --- Korean text ---
+jamo>=0.4.1
+
+# --- Dev / test ---
+pytest>=8.0.0
+ruff>=0.3.0

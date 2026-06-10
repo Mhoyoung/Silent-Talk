@@ -1,0 +1,67 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- PyTorch / ML artifacts ---
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+runs/
+lightning_logs/
+wandb/
+mlruns/
+checkpoints/
+
+# --- Data (do NOT commit raw datasets) ---
+data/raw/*
+!data/raw/.gitkeep
+data/processed/
+data/cache/
+*.tfrecord
+*.h5
+*.npy
+*.npz
+
+# --- Node / Frontend ---
+node_modules/
+.next/
+.vite/
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
