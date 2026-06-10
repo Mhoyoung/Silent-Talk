@@ -1,0 +1,27 @@
+# 모델/학습 설정 (1차 MVP)
+model:
+  name: lipnet
+  in_channels: 1
+  conv_channels: [32, 64, 96]
+  rnn_hidden: 256
+  rnn_layers: 2
+  dropout: 0.5
+  # vocab_size는 학습 스크립트에서 vocab 파일 길이로 자동 주입
+
+train:
+  epochs: 80
+  optimizer: adam
+  lr: 3.0e-4
+  weight_decay: 1.0e-5
+  grad_clip: 5.0
+  scheduler:
+    name: cosine
+    warmup_epochs: 5
+  amp: true
+  log_every: 20
+  ckpt_dir: checkpoints/lipnet_mvp
+
+eval:
+  metric: cer                 # 1차 MVP 기준 지표
+  baseline_cer_threshold: 0.40
+  # CER > 0.40 이면 3D-ResNet backbone으로 교체 후 재학습
