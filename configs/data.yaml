@@ -1,0 +1,32 @@
+# 데이터/전처리 설정 (1차 MVP)
+dataset:
+  name: aihub_lipreading_subset
+  manifest_train: data/processed/manifest_train.jsonl
+  manifest_val: data/processed/manifest_val.jsonl
+  manifest_test: data/processed/manifest_test.jsonl
+  vocab_path: configs/vocab_ko_mvp.json
+
+  # 1차 MVP 범위 제한
+  max_speakers: null            # null 이면 manifest 전체 사용
+  vocabulary_size: 100          # 핵심 어휘 수
+  sentence_pool: 50             # 지정 문장 수
+
+preprocess:
+  out_size: 112
+  padding_ratio: 0.25
+  grayscale: true
+  fps: 25                       # 다운샘플 목표 fps
+  max_frames: 75                # 클립당 최대 프레임 (≈3초 @ 25fps)
+  min_frames: 8
+
+vvad:
+  window: 5
+  mar_threshold: 0.04
+  min_speech_frames: 6
+  min_silence_frames: 4
+
+dataloader:
+  batch_size: 16
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
