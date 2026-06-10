@@ -1,7 +1,9 @@
 """단발 추론 REST 엔드포인트.
 
 웹캠 영상 전체(혹은 ROI 시퀀스 npy)를 한 번에 업로드해 텍스트로 변환.
-실시간 스트리밍은 routers/ws.py 참조.
+실시간 스트리밍은 backend/services/ws_handler.py 참조.
+
+라우터는 backend/api/routes.py 에서 /api prefix로 묶여 등록된다.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from pydantic import BaseModel
 
 from backend.services.inference_service import InferenceService
 
-router = APIRouter(prefix="/api", tags=["inference"])
+router = APIRouter()
 _service: InferenceService | None = None
 
 

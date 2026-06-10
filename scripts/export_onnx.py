@@ -10,8 +10,8 @@ from pathlib import Path
 
 import torch
 
-from data.dataset import CharTokenizer
-from models import LipNet, LipNetConfig
+from backend.models import LipNet, LipNetConfig
+from backend.preprocessing.dataset import CharTokenizer
 
 
 def main() -> None:

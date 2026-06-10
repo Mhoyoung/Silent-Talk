@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
-from data.lip_extractor import ExtractorConfig, LipROIExtractor
+from backend.preprocessing.roi_extractor import ExtractorConfig, LipROIExtractor
 
 
 def main() -> None:

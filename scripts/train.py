@@ -15,9 +15,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from data import LipReadingDataset, collate_ctc
-from data.dataset import CharTokenizer
-from models import LipNet, LipNetConfig
+from backend.models import LipNet, LipNetConfig
+from backend.preprocessing import LipReadingDataset, collate_ctc
+from backend.preprocessing.dataset import CharTokenizer
 
 
 def load_yaml(path: str | Path) -> dict:

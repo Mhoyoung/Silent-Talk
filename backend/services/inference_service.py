@@ -12,8 +12,8 @@ import numpy as np
 import torch
 
 from backend.config import settings
-from data.dataset import CharTokenizer
-from models import GreedyCTCDecoder, LipNet, LipNetConfig
+from backend.models import GreedyCTCDecoder, LipNet, LipNetConfig
+from backend.preprocessing.dataset import CharTokenizer
 
 
 class InferenceService:

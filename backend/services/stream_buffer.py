@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from data.vvad import VVADConfig, VisualVAD
+from backend.preprocessing.segmenter import VVADConfig, VisualVAD
 
 
 @dataclass

@@ -1,4 +1,6 @@
-"""실시간 립리딩 WebSocket.
+"""실시간 립리딩 WebSocket 핸들러.
+
+main.py가 등록한 /ws/stream 엔드포인트의 실제 처리를 담당한다.
 
 클라이언트 메시지 (JSON):
     {"type": "frame", "roi": <base64 PNG>, "mar": <float>}
@@ -16,14 +18,12 @@ import base64
 import io
 
 import numpy as np
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect
 from PIL import Image
 
+from backend.api.infer import get_service
 from backend.config import settings
-from backend.routers.inference import get_service
 from backend.services.stream_buffer import StreamBuffer
-
-router = APIRouter()
 
 
 def _decode_roi(b64_png: str) -> np.ndarray:
@@ -32,8 +32,7 @@ def _decode_roi(b64_png: str) -> np.ndarray:
     return np.array(img, dtype=np.uint8)
 
 
-@router.websocket("/ws/stream")
-async def stream(ws: WebSocket) -> None:
+async def handle_connection(ws: WebSocket) -> None:
     await ws.accept()
     buffer = StreamBuffer(max_frames=settings.max_clip_frames)
     service = get_service()
@@ -60,7 +59,6 @@ async def stream(ws: WebSocket) -> None:
             if clip is None or clip.shape[0] < 8:
                 continue
 
-            # 추론은 블로킹 → 스레드풀로
             text = await loop.run_in_executor(None, service.infer, clip)
             await ws.send_json({"type": "partial", "text": text})
 

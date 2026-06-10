@@ -13,9 +13,9 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
-from data import LipReadingDataset, collate_ctc
-from data.dataset import CharTokenizer
-from models import GreedyCTCDecoder, LipNet, LipNetConfig
+from backend.models import GreedyCTCDecoder, LipNet, LipNetConfig
+from backend.preprocessing import LipReadingDataset, collate_ctc
+from backend.preprocessing.dataset import CharTokenizer
 
 
 def cer(reference: str, hypothesis: str) -> float:

@@ -51,17 +51,35 @@
 
 ```
 Silent-Talk/
-├── backend/          FastAPI 서버 (추론 API, WebSocket)
-│   ├── routers/
-│   └── services/
+├── backend/
+│   ├── main.py              FastAPI 진입점 (lifespan, /health, /ws/stream)
+│   ├── config.py            전역 상수 (FPS/SEQ_LEN/ROI/CORS/제약)
+│   ├── api/                 REST 라우트 (/api/* 통합)
+│   │   ├── routes.py        ·  서브 라우터 집약 (upload/infer/evaluation)
+│   │   ├── upload.py        ·  POST /api/upload (stub)
+│   │   ├── infer.py         ·  POST /api/infer (현재 sync)
+│   │   └── evaluation.py    ·  POST /api/evaluation/run (stub)
+│   ├── schemas/models.py    Pydantic 요청/응답 스키마
+│   ├── preprocessing/       전처리 파이프라인
+│   │   ├── roi_extractor.py ·  MediaPipe 입술 ROI 크롭/리사이즈
+│   │   ├── segmenter.py     ·  V-VAD 발화 구간 분리
+│   │   └── dataset.py       ·  PyTorch Dataset + CTC collate
+│   ├── models/              모델/디코더
+│   │   ├── baseline.py      ·  LipNet (3D-CNN + BiGRU + CTC)
+│   │   ├── decoder.py       ·  CTC 디코더
+│   │   └── weights/         ·  *.pt (gitignored)
+│   ├── services/
+│   │   ├── inference_service.py
+│   │   ├── ws_handler.py    ·  /ws/stream 실시간 핸들러
+│   │   ├── stream_buffer.py ·  V-VAD 기반 발화 누적 버퍼
+│   │   ├── job_manager.py   ·  비동기 Job 상태 (stub)
+│   │   └── file_cleaner.py  ·  임시 업로드 정리 스케줄러
+│   └── tests/
 ├── frontend/         React + Tailwind UI
-│   └── src/
-├── models/           모델 정의 (LipNet, CTC 디코더)
-├── data/             데이터 전처리 / Dataset 클래스
-├── configs/          YAML 설정
-├── scripts/          train / evaluate / 추론 스크립트
-├── docker/           Dockerfile.*
-└── tests/
+├── configs/          학습 하이퍼파라미터 YAML
+├── scripts/          extract_lip_rois / train / evaluate / export_onnx
+├── docker/           Dockerfile.backend · Dockerfile.frontend · nginx.conf
+└── docker-compose.yml
 ```
 
 ---
@@ -73,7 +91,8 @@ Silent-Talk/
 pip install -r requirements.txt
 
 # 2. 입술 ROI 추출
-python scripts/extract_lip_rois.py --input data/raw --output data/processed
+python scripts/extract_lip_rois.py --videos data_cache/videos --labels data_cache/labels.csv \
+    --output data_cache/processed --manifest data_cache/manifest_train.jsonl
 
 # 3. 학습
 python scripts/train.py --config configs/model.yaml
